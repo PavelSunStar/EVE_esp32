@@ -24,14 +24,22 @@ static inline void updateFPS() {
 }
 
 // ---- 8 bit (RGB332) ----
+inline uint8_t RGB8(uint8_t r, uint8_t g, uint8_t b) { return ((r >> 5) << 5) | ((g >> 5) << 2) | (b >> 6); }
 inline uint8_t R8(uint8_t c) { return (c >> 5) & 0x07; }
 inline uint8_t G8(uint8_t c) { return (c >> 2) & 0x07; }
 inline uint8_t B8(uint8_t c) { return  c       & 0x03; }
 
 // ---- 16 bit (RGB565) ----
+inline uint16_t RGB16(uint8_t r, uint8_t g, uint8_t b) { return ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3); }
 inline uint16_t R16(uint16_t c) { return (c >> 11) & 0x1F; }
 inline uint16_t G16(uint16_t c) { return (c >> 5)  & 0x3F; }
 inline uint16_t B16(uint16_t c) { return  c        & 0x1F; }
+
+
+// Matrix
+static constexpr const float deg_to_rad = 0.017453292519943295769236907684886;
+static constexpr const uint8_t FP_SCALE = 16;
+#define FP_ONE   (1 << FP_SCALE)
 
 //size_t psRamSize() { return ESP.getPsramSize(); }
 /*

@@ -1,4 +1,6 @@
 #include "EVE_esp32.h"
+#include "esp_heap_caps.h"
+#include "esp_psram.h"   
 
 EVE_esp32::EVE_esp32(){
     for (int i = 0; i < LUT_SIZE; ++i) {
@@ -9,6 +11,28 @@ EVE_esp32::EVE_esp32(){
 
 EVE_esp32::~EVE_esp32(){
     freeMem();
+}
+
+void EVE_esp32::freeVirtualScreen(){
+    _vbCfg = {};
+    _vpBuf = {};    
+    _vbInited = false;
+    _bgInited = false;
+
+    if (scrBuf) {
+        heap_caps_free(scrBuf);
+        scrBuf = nullptr;
+    }
+
+    if (bg) {
+        heap_caps_free(bg);
+        bg = nullptr;
+    }  
+    
+    if (tmpBuf) {
+        heap_caps_free(tmpBuf);
+        tmpBuf = nullptr;
+    }    
 }
 
 bool EVE_esp32::boot(){
@@ -105,29 +129,49 @@ bool EVE_esp32::init(Mode &m, bool setQSPI){
 }
 
 bool EVE_esp32::createVideoBuffer(uint8_t bpp, bool backGroung){
-    if (_vbInited) return true;
-
+    if (bpp != 16 && bpp != 8) return false;
+    
+    freeVirtualScreen();
+    
     // Virtual screen buffer param
-    _vbCfg.bpp         = bpp;
-    _vbCfg.width       = _scr.width >> 1;
-    _vbCfg.height      = _scr.height >> 1;
-    _vbCfg.lineSize    = _vbCfg.width * (_vbCfg.bpp == 16 ? 2 : 1);
-    _vbCfg.xx          = _vbCfg.width - 1;
-    _vbCfg.yy          = _vbCfg.height - 1;
-    _vbCfg.cx          = _vbCfg.width >> 1;
-    _vbCfg.cy          = _vbCfg.height >> 1;
-    _vbCfg.size        = _vbCfg.width * _vbCfg.height;
-    _vbCfg.fullSize    = _vbCfg.size * (_vbCfg.bpp == 16 ? 2 : 1);
+    _vbCfg.bpp      = bpp;
+    _vbCfg.width    = _scr.width >> 1;
+    _vbCfg.height   = _scr.height >> 1;
+    _vbCfg.lineSize = _vbCfg.width * (_vbCfg.bpp == _16BIT ? 2 : 1);
+    _vbCfg.xx       = _vbCfg.width - 1;
+    _vbCfg.yy       = _vbCfg.height - 1;
+    _vbCfg.cx       = _vbCfg.width >> 1;
+    _vbCfg.cy       = _vbCfg.height >> 1;
+    _vbCfg.size     = _vbCfg.width * _vbCfg.height;
+    _vbCfg.fullSize = _vbCfg.lineSize * _vbCfg.height;
 
     _vpBuf.x1 = 0;
     _vpBuf.y1 = 0;
     _vpBuf.x2 = _vbCfg.xx;
-    _vpBuf.y2 = _vbCfg.yy;
+    _vpBuf.y2 = _vbCfg.yy;    
+
+    bool psram_ok = false;
+    #if defined(psramFound)
+        psram_ok = psramFound();
+    #else
+        psram_ok = esp_psram_is_initialized();
+    #endif
+
+    size_t aligned = (_vbCfg.fullSize + 31) & ~size_t(31);
+    if (psram_ok) {
+        scrBuf = (uint8_t*)heap_caps_aligned_alloc(
+            32, aligned,
+            MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT
+        );
+    } else {
+        scrBuf = (uint8_t*)heap_caps_aligned_alloc(
+            32, aligned,
+            MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT
+        );
+    }
     
-    
-    scrBuf = (uint8_t*)ps_malloc(_vbCfg.fullSize);
-    if (!scrBuf){
-        Serial.println("Can not allocate screen buffer");
+    if (!scrBuf) {
+        Serial.println(F("Error: failed to allocate image buffer"));
         return false;
     } else {
         if (_vbCfg.bpp == 16){
@@ -152,7 +196,19 @@ bool EVE_esp32::createVideoBuffer(uint8_t bpp, bool backGroung){
     }    
 
     if (backGroung){ 
-        bg = (uint8_t*)ps_malloc(_vbCfg.fullSize);
+        aligned = (_vbCfg.fullSize + 31) & ~size_t(31);
+        if (psram_ok) {
+            bg = (uint8_t*)heap_caps_aligned_alloc(
+                32, aligned,
+                MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT
+            );
+        } else {
+            bg = (uint8_t*)heap_caps_aligned_alloc(
+                32, aligned,
+                MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT
+            );
+        }
+
         if (!bg){
             Serial.println("Can not allocate back ground buffer");
             return false;
@@ -162,7 +218,7 @@ bool EVE_esp32::createVideoBuffer(uint8_t bpp, bool backGroung){
         }
     } 
 
-    return _vbInited = true;
+    return (_vbInited = true);
 }
 
 void EVE_esp32::freeMem(){
@@ -225,7 +281,7 @@ double EVE_esp32::measureClockHz(uint32_t ms){
 
 void EVE_esp32::setScrParam(){
     //Eve param
-    _scr.bpp        = 16;
+    _scr.bpp        = 24;
     _scr.width      = _mode.hRes;
     _scr.height     = _mode.vRes;
     _scr.xx         = _scr.width - 1;
@@ -319,13 +375,11 @@ void EVE_esp32::dlEnd(){
     dl(DL_DISPLAY());
 }
 */
-void EVE_esp32::swap(){
-    //Serial.println(_dlPos);
-    // ЖДЁМ, пока прошлый swap завершён
-    while (_spi.rd8(REG_DLSWAP) != 0) {}
 
-    // И только потом просим swap
+void EVE_esp32::swap(){
+    while (_spi.rd8(REG_DLSWAP) != 0) {}       
     _spi.wr8(REG_DLSWAP, DLSWAP_FRAME);
+  
 }
 
 //========================================
@@ -339,9 +393,9 @@ void EVE_esp32::dlStart(uint8_t r, uint8_t g, uint8_t b){
     if (_vbInited){
         dl(BITMAP_HANDLE(0));
         dl(BITMAP_SOURCE(_vbCfg.source));
-        dl(BITMAP_LAYOUT(RGB565, 320*2, 240));
+        dl(BITMAP_LAYOUT(((_vbCfg.bpp == 16) ? RGB565 : RGB332), _vbCfg.lineSize, _vbCfg.height));
         dl(BITMAP_LAYOUT_H(0,0));
-        dl(BITMAP_SIZE(0, 0, 0, 640, 480));
+        dl(BITMAP_SIZE(0, 0, 0, _scr.width, _scr.height));
         dl(BITMAP_SIZE_H(1, 0));
         dl(BITMAP_TRANSFORM_A(128));
         dl(BITMAP_TRANSFORM_E(128));

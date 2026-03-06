@@ -31,15 +31,6 @@ struct Viewport{
     uint16_t x2, y2;
 };
 
-struct Image{
-    uint16_t width, height;
-    uint16_t xx, yy;
-    uint16_t cx, cy;    
-    uint32_t lineSize, size;
-    uint32_t offset;
-    int maxSprites;
-};
-
 struct EVE_Image{
     uint32_t addr;
     uint8_t format;

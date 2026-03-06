@@ -15,7 +15,7 @@ void GFX::cls(uint16_t col){
         if ((uint8_t)col == (uint8_t)(col >> 8)){
             memset(_vga.scrBuf, (uint8_t)col, _vga.vbFullSize());
         } else {
-            uint16_t* scr = (uint16_t*)_vga.scrBuf;
+            uint16_t* scr = (uint16_t*)(_vga.scrBuf);
             uint16_t* cpy = scr;
 
             int size = 0;
@@ -50,7 +50,7 @@ void GFX::cls(uint16_t col){
 void GFX::putPixel(int x, int y, uint16_t col){
     if (!_vga.vbInited() || x < _vga.vbvX1() || y < _vga.vbvY1() || x > _vga.vbvX2() ||  y > _vga.vbvY2()) return;
 
-    if (_vga.BPP() == 16){
+    if (_vga.vbBPP() == 16){
         _vga.lineBuf16[y][x] = col;
     } else {
         _vga.lineBuf8[y][x] = (uint8_t)(col & 0xFF);
@@ -65,7 +65,7 @@ void GFX::hLine(int x1, int y, int x2, uint16_t col){
     x1 = std::max(_vga.vbvX1(), x1);
     x2 = std::min(_vga.vbvX2(), x2);
 
-    if (_vga.BPP() == 16){ 
+    if (_vga.vbBPP() == 16){ 
         uint16_t* scr = _vga.lineBuf16[y] + x1;
         if ((uint8_t)col == (uint8_t)(col >> 8)){
             memset(_vga.scrBuf, (uint8_t)col, x2 - x1 + 1);
@@ -86,18 +86,18 @@ void GFX::vLine(int x, int y1, int y2, uint16_t col){
     y1 = std::max(_vga.vbvY1(), y1);
     y2 = std::min(_vga.vbvY2(), y2);
 
-    if (_vga.BPP() == 16){ 
+    if (_vga.vbBPP() == 16){ 
         uint16_t* scr = _vga.lineBuf16[y1] + x;
         while (y1++ <= y2){ 
             *scr = col;
-            scr += _vga.Width();
+            scr += _vga.vbWidth();
         }
     } else {
         uint8_t* scr = _vga.lineBuf8[y1] + x;
         uint8_t color = (uint8_t)(col & 0xFF);
         while (y1++ <= y2){ 
             *scr = color;
-            scr += _vga.Width();
+            scr += _vga.vbWidth();
         }       
     }
 }
@@ -112,12 +112,12 @@ void GFX::rect(int x1, int y1, int x2, int y2, uint16_t col){
         int sizeX = x2 - x1 + 1; 
         int sizeX2X = sizeX << 1;
         int sizeY = y2 - y1 - 1;
-        int width = _vga.Width();
+        int width = _vga.vbWidth();
         int skip1 = x2 - x1; 
         int skip2 = width - x2 + x1;
         int offset = width * y1 + x1;
 
-        if (_vga.BPP() == 16){
+        if (_vga.vbBPP() == 16){
             uint16_t* scr = _vga.lineBuf16[y1] + x1;
             uint16_t* cpy = scr;
             
@@ -162,9 +162,9 @@ void GFX::fillRect(int x1, int y1, int x2, int y2, uint16_t col){
     
     int sizeX = x2 - x1 + 1;
     int sizeY = y2 - y1 + 1;     
-    int width = _vga.Width();
+    int width = _vga.vbWidth();
 
-    if (_vga.BPP() == 16){
+    if (_vga.vbBPP() == 16){
         uint16_t* scr = _vga.lineBuf16[y1] + x1;
         uint16_t* savePos = scr;
 
@@ -209,7 +209,7 @@ void GFX::line(int x1, int y1, int x2, int y2, uint16_t col){
 
         while (true) {
             if (x1 >= _vga.vbvX1() && x1 <= _vga.vbvX2() && y1 >= _vga.vbvY1() && y1 <= _vga.vbvY2()){
-                if (_vga.BPP() == 16){
+                if (_vga.vbBPP() == 16){
                     _vga.lineBuf16[y1][x1] = col;
                 } else {
                     _vga.lineBuf8[y1][x1] = color;
@@ -770,7 +770,7 @@ void GFX::blur(){
     uint16_t* line0 = _vga.lineBuf16[0];
     uint16_t* line1 = _vga.lineBuf16[1];
 
-    if (_vga.BPP() == 16) {
+    if (_vga.vbBPP() == 16) {
         // ---- RGB565 ----
         while (height-- > 0){
             for (int x = 1; x < width; x++) {
@@ -810,9 +810,9 @@ void GFX::blur(){
 /*
 void GFX::blur()
 {
-    if (_vga.BPP() != 16) return;
+    if (_vga.vbBPP() != 16) return;
 
-    const int w = _vga.Width();
+    const int w = _vga.vbWidth();
     const int h = _vga.Height();
 
     for (int y = 0; y < h - 1; y++) {
@@ -847,9 +847,9 @@ void GFX::blur()
 
 void GFX::blur()
 {
-    if (_vga.BPP() != 16) return;
+    if (_vga.vbBPP() != 16) return;
 
-    const int w = _vga.Width();
+    const int w = _vga.vbWidth();
     const int h = _vga.Height();
     static uint8_t phase = 0;
     phase ^= 1;
@@ -881,7 +881,7 @@ void GFX::blur(){
     uint16_t* line0 = _vga.lineBuf16[0];
     uint16_t* line1 = _vga.lineBuf16[1];
 
-    if (_vga.BPP() == 16) {
+    if (_vga.vbBPP() == 16) {
         // ---- RGB565 ----
         while (height-- > 0){
             for (int x = 1; x < width; x++) {

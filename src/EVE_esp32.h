@@ -9,6 +9,9 @@
 #include "types.h"
 #include "eve_utils.h"
 
+#define _8BIT               8
+#define _16BIT              16
+
 class EVE_esp32{
     public:
         uint8_t*    bg = nullptr;
@@ -22,6 +25,7 @@ class EVE_esp32{
 
         bool init(Mode &m = MODE640x480, bool setQSPI = true);
         bool createVideoBuffer(uint8_t bpp = 16, bool backGroung = false);
+        void copyBG() { memcpy(scrBuf, bg, _vbCfg.fullSize); };
 
         // DL List
         void            dlNewList();
@@ -52,6 +56,12 @@ class EVE_esp32{
         int CX()        { return _scr.cx; }
         int CY()        { return _scr.cy; }
 
+        //Screen viewport
+        int vX1()       {return _vp.x1;};
+        int vY1()       {return _vp.y1;};
+        int vX2()       {return _vp.x2;};
+        int vY2()       {return _vp.y2;};
+
         // Virtual buffer screen
         bool vbInited() { return _vbInited; }
         int vbBPP()     { return _vbCfg.bpp; }
@@ -64,12 +74,6 @@ class EVE_esp32{
         int vbCY()      { return _vbCfg.cy; }
         int vbSize()    { return _vbCfg.size; }
         int vbFullSize(){ return _vbCfg.fullSize; }
-
-        //Screen viewport
-        int vX1()       {return _vp.x1;};
-        int vY1()       {return _vp.y1;};
-        int vX2()       {return _vp.x2;};
-        int vY2()       {return _vp.y2;};
                 
         // Virtual buffer viewport
         int vbvX1()     { return _vpBuf.x1; }
@@ -93,6 +97,7 @@ class EVE_esp32{
         void setFreq();
         double measureClockHz(uint32_t ms);
         void freeMem();
+        void freeVirtualScreen();
 
         // Eve video mode
         Mode        _mode;
@@ -104,13 +109,11 @@ class EVE_esp32{
         // Virtual screen
         bool            _vbInited = false;
         bool            _bgInited = false;
-        uint32_t        _bgPos;
         Video_Buffer    _vbCfg;
         Viewport        _vpBuf;
 
         // DL
         uint32_t        _dlPos = 0;
-        uint32_t        _dlMemPos = 0;
 
         //CMD
         bool            _cmdFirst = true;
