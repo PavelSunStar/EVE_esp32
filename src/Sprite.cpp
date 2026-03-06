@@ -206,6 +206,10 @@ bool Sprite::loadImages(const uint8_t* data){
     return (_created = true);
 }
 
+void Sprite::sendToEve(uint32_t addr, uint16_t num, uint8_t format){
+    if (!_created || num >= _maxImage) return; 
+    _vga.sendData(addr, buf + _img[num].offset, _img[num].fullSize);    
+}
 /*
 for (int i = 0; i < _maxImage; i++){
     ptr += 4; // пропускаем width/height

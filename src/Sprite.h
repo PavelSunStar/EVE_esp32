@@ -5,8 +5,6 @@
 #include "esp_psram.h"   // esp_psram_is_initialized()
 #include "EVE_esp32.h"
 
-#define _8BIT               8
-#define _16BIT              16
 #define MAX_SPRITE_LINES    1024
 
 struct Image{
@@ -32,6 +30,7 @@ class Sprite{
         ~Sprite();
 
         bool loadImages(const uint8_t* data);
+        void sendToEve(uint32_t addr, uint16_t num, uint8_t format = ARGB1555);
         bool createImages(uint16_t xx, uint16_t yy, uint16_t num = 1);
         void putImage(int x, int y, uint16_t num = 0);
 
