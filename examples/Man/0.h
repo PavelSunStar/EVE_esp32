@@ -1,7 +1,7 @@
 #pragma once
 
 const uint8_t _0[] PROGMEM = {
-    0x10, 0x07, // 16 bit RGB565, images: 8
+    0x10, 0x08, // 16 bit RGB565, images: 8
 
     0x00, 0x00, 0x00, 0x00, // 0: 0 - 38x38
     0x4C, 0x0B, 0x00, 0x00, // 1: 2892 - 38x38
